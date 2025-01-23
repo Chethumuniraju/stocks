@@ -199,9 +199,6 @@ const Explore = () => {
                                                 <Typography variant="caption" color="text.secondary">
                                                     {item.source}
                                                 </Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {new Date(item.time_published).toLocaleString()}
-                                                </Typography>
                                             </Box>
                                             <Typography variant="h6" component="a" 
                                                 href={item.url} 
