@@ -3,6 +3,7 @@ import { AppBar, Toolbar, Typography, Button, Box, IconButton, Menu, MenuItem } 
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import ExploreIcon from '@mui/icons-material/Explore';
 
 const Navbar = () => {
     const navigate = useNavigate();
@@ -10,7 +11,7 @@ const Navbar = () => {
     const [anchorEl, setAnchorEl] = React.useState(null);
 
     const handleLogoClick = () => {
-        navigate('/');
+        navigate('/dashboard');
     };
 
     const handleProfileMenuOpen = (event) => {
@@ -53,6 +54,13 @@ const Navbar = () => {
                 </Typography>
                 {user && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Button
+                            color="inherit"
+                            startIcon={<ExploreIcon />}
+                            onClick={() => navigate('/explore')}
+                        >
+                            Explore
+                        </Button>
                         <Typography variant="body1">
                             {user.email}
                         </Typography>

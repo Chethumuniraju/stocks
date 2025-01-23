@@ -3,11 +3,12 @@ import { useParams } from 'react-router-dom';
 import {
     Box, Container, Typography, Paper, Grid, Button,
     ButtonGroup, CircularProgress, Card, CardContent,
-    Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert
+    Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert,
+    Divider
 } from '@mui/material';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid,
-    Tooltip, Legend, ResponsiveContainer
+    Tooltip, Legend, ResponsiveContainer, BarChart, Bar
 } from 'recharts';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,6 +28,8 @@ const StockDetails = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [holdings, setHoldings] = useState(null);
+    const [fundamentals, setFundamentals] = useState(null);
+    const [financials, setFinancials] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -35,7 +38,9 @@ const StockDetails = () => {
                 await Promise.all([
                     fetchStockData(),
                     fetchQuote(),
-                    fetchHoldings()
+                    fetchHoldings(),
+                    fetchFundamentals(),
+                    fetchFinancials()
                 ]);
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -123,6 +128,30 @@ const StockDetails = () => {
         }
     };
 
+    const fetchFundamentals = async () => {
+        try {
+            const response = await fetch(`http://localhost:8080/api/stocks/${symbol}/fundamentals`);
+            if (response.ok) {
+                const data = await response.json();
+                setFundamentals(data);
+            }
+        } catch (error) {
+            console.error('Error fetching fundamentals:', error);
+        }
+    };
+
+    const fetchFinancials = async () => {
+        try {
+            const response = await fetch(`http://localhost:8080/api/stocks/${symbol}/financials`);
+            if (response.ok) {
+                const data = await response.json();
+                setFinancials(data);
+            }
+        } catch (error) {
+            console.error('Error fetching financials:', error);
+        }
+    };
+
     const handleBuy = async () => {
         try {
             const response = await fetch('http://localhost:8080/api/transactions/buy', {
@@ -189,6 +218,150 @@ const StockDetails = () => {
         const value = e.target.value;
         setQuantity(value);
         setError(''); // Clear any previous errors
+    };
+
+    const renderFundamentals = () => {
+        if (!fundamentals) return null;
+
+        return (
+            <Grid item xs={12}>
+                <Paper sx={{ p: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                        Company Fundamentals
+                    </Typography>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} md={4}>
+                            <Card>
+                                <CardContent>
+                                    <Typography color="textSecondary" gutterBottom>
+                                        Market Cap
+                                    </Typography>
+                                    <Typography variant="h6">
+                                        ${(parseFloat(fundamentals.MarketCapitalization) / 1e9).toFixed(2)}B
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                            <Card>
+                                <CardContent>
+                                    <Typography color="textSecondary" gutterBottom>
+                                        P/E Ratio
+                                    </Typography>
+                                    <Typography variant="h6">
+                                        {fundamentals.PERatio || 'N/A'}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                            <Card>
+                                <CardContent>
+                                    <Typography color="textSecondary" gutterBottom>
+                                        Dividend Yield
+                                    </Typography>
+                                    <Typography variant="h6">
+                                        {fundamentals.DividendYield ? `${(parseFloat(fundamentals.DividendYield) * 100).toFixed(2)}%` : 'N/A'}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                            <Card>
+                                <CardContent>
+                                    <Typography color="textSecondary" gutterBottom>
+                                        Beta
+                                    </Typography>
+                                    <Typography variant="h6">
+                                        {fundamentals.Beta || 'N/A'}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                            <Card>
+                                <CardContent>
+                                    <Typography color="textSecondary" gutterBottom>
+                                        Book Value
+                                    </Typography>
+                                    <Typography variant="h6">
+                                        ${fundamentals.BookValue || 'N/A'}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                            <Card>
+                                <CardContent>
+                                    <Typography color="textSecondary" gutterBottom>
+                                        EPS
+                                    </Typography>
+                                    <Typography variant="h6">
+                                        ${fundamentals.EPS || 'N/A'}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    </Grid>
+                </Paper>
+            </Grid>
+        );
+    };
+
+    const renderFinancials = () => {
+        if (!financials?.annualReports) return null;
+
+        const last5Years = financials.annualReports.slice(0, 5);
+        const chartData = last5Years.map(report => ({
+            year: report.fiscalDateEnding.split('-')[0],
+            operatingCashFlow: parseFloat(report.operatingCashflow) / 1e6,
+            netIncome: parseFloat(report.netIncome) / 1e6
+        })).reverse();
+
+        return (
+            <Grid item xs={12}>
+                <Paper sx={{ p: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                        Financial Performance (in Millions USD)
+                    </Typography>
+                    <Box sx={{ height: 400 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                                data={chartData}
+                                margin={{
+                                    top: 20,
+                                    right: 30,
+                                    left: 20,
+                                    bottom: 5,
+                                }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="year" />
+                                <YAxis />
+                                <Tooltip 
+                                    formatter={(value) => `$${value.toFixed(2)}M`}
+                                    labelStyle={{ color: 'black' }}
+                                    contentStyle={{ backgroundColor: 'white', border: '1px solid #ccc' }}
+                                />
+                                <Legend />
+                                <Bar 
+                                    dataKey="operatingCashFlow" 
+                                    name="Operating Cash Flow" 
+                                    fill="#8884d8"
+                                    radius={[4, 4, 0, 0]}
+                                />
+                                <Bar 
+                                    dataKey="netIncome" 
+                                    name="Net Income" 
+                                    fill="#82ca9d"
+                                    radius={[4, 4, 0, 0]}
+                                />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </Box>
+                </Paper>
+            </Grid>
+        );
     };
 
     if (loading) {
@@ -315,6 +488,12 @@ const StockDetails = () => {
                             </Box>
                         </Paper>
                     </Grid>
+
+                    {/* Fundamentals Section */}
+                    {renderFundamentals()}
+
+                    {/* Financials Section */}
+                    {renderFinancials()}
 
                     {/* Trading Section */}
                     <Grid item xs={12}>

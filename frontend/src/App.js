@@ -10,6 +10,7 @@ import PrivateRoute from './components/PrivateRoute';
 import WatchlistPage from './pages/WatchlistPage';
 import WatchlistDetail from './pages/WatchlistDetail';
 import { AuthProvider } from './contexts/AuthContext';
+import Explore from './pages/Explore';
 
 const theme = createTheme({
   palette: {
@@ -30,6 +31,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/explore" element={<Explore />} />
             <Route path="/" element={
               <PrivateRoute>
                 <Home />

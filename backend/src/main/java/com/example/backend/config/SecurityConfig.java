@@ -25,12 +25,18 @@ public class SecurityConfig {
     private final AuthenticationProvider authenticationProvider;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(withDefaults())
             .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/stocks/top-movers").permitAll()
+                .requestMatchers("/api/stocks/news").permitAll()
+                .requestMatchers("/api/stocks/*/quote").permitAll()
+                .requestMatchers("/api/stocks/search").permitAll()
+                .requestMatchers("/api/stocks/*/fundamentals").permitAll()
+                .requestMatchers("/api/stocks/*/financials").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/watchlists/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/stocks/**").permitAll()
