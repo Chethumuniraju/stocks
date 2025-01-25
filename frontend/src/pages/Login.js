@@ -6,10 +6,12 @@ import {
     Typography, 
     Paper,
     Container,
-    Alert
+    Alert,
+    Divider
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { login as loginApi } from '../services/api';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -23,24 +25,11 @@ const Login = () => {
         setError('');
         
         try {
-            const response = await fetch('http://localhost:8080/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email, password }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to login');
-            }
-
+            const data = await loginApi({ email, password });
             login(data.user, data.token);
             navigate('/dashboard');
         } catch (err) {
-            setError(err.message || 'Failed to login');
+            setError(err.response?.data?.message || 'Failed to login');
         }
     };
 
@@ -71,6 +60,7 @@ const Login = () => {
                             id="email"
                             label="Email Address"
                             name="email"
+                            type="email"
                             autoComplete="email"
                             autoFocus
                             value={email}
@@ -96,6 +86,30 @@ const Login = () => {
                         >
                             Sign In
                         </Button>
+                        
+                        <Divider sx={{ my: 2 }}>
+                            <Typography color="textSecondary" variant="body2">
+                                OR
+                            </Typography>
+                        </Divider>
+                        
+                        <Box textAlign="center">
+                            <Typography variant="body2" color="textSecondary">
+                                Don't have an account?{' '}
+                                <RouterLink 
+                                    to="/register"
+                                    style={{ 
+                                        textDecoration: 'none',
+                                        color: 'primary.main',
+                                        '&:hover': {
+                                            textDecoration: 'underline'
+                                        }
+                                    }}
+                                >
+                                    Sign Up
+                                </RouterLink>
+                            </Typography>
+                        </Box>
                     </Box>
                 </Paper>
             </Box>

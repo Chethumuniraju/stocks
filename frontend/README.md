@@ -1,3 +1,36 @@
+# Stock Tracker Frontend
+
+React frontend for the Stock Tracker application.
+
+## Environment Variables
+
+Required environment variables for deployment:
+
+```
+REACT_APP_API_URL=your_backend_url
+```
+
+## Deployment on Render
+
+1. Create a new Web Service on Render
+2. Connect your GitHub repository
+3. Configure the service:
+   - Name: `stock-tracker-frontend`
+   - Environment: `Docker`
+   - Branch: `main`
+   - Root Directory: `.` (root of the repository)
+   - Environment Variables: Add all required environment variables
+   - Health Check Path: `/`
+
+## Local Development
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Set up environment variables in `.env`
+4. Run `npm start`
+
+The app will be available at `http://localhost:3000`
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).

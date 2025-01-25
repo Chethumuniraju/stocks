@@ -3,6 +3,7 @@ package com.example.backend.service;
 import com.example.backend.model.Holdings;
 import com.example.backend.model.User;
 import com.example.backend.repository.HoldingsRepository;
+import com.example.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HoldingsService {
     private final HoldingsRepository holdingsRepository;
+    private final UserRepository userRepository;
     private static final Logger log = LoggerFactory.getLogger(HoldingsService.class);
 
     private User getCurrentUser() {
@@ -29,6 +31,19 @@ public class HoldingsService {
         log.info("Found {} holdings for user {}", holdings.size(), user.getEmail());
         return holdings.stream()
                 .filter(h -> h.getQuantity() > 0)  // Only return holdings with positive quantity
+                .collect(Collectors.toList());
+    }
+
+    public List<Holdings> getHoldingsByUserId(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        log.info("Fetching holdings for user ID: {}", userId);
+        
+        List<Holdings> holdings = holdingsRepository.findByUser(user);
+        log.info("Found {} holdings for shared portfolio", holdings.size());
+        
+        return holdings.stream()
+                .filter(h -> h.getQuantity() > 0)
                 .collect(Collectors.toList());
     }
 

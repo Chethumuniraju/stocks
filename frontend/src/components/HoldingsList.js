@@ -1,72 +1,127 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     Card, CardContent, Typography, Box, Grid,
     Table, TableBody, TableCell, TableContainer, 
-    TableHead, TableRow, Paper, CircularProgress
+    TableHead, TableRow, Paper, CircularProgress,
+    Button, Snackbar, IconButton
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import ShareIcon from '@mui/icons-material/Share';
+import CloseIcon from '@mui/icons-material/Close';
+import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
 
 const HoldingsList = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [holdings, setHoldings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [stockDetails, setStockDetails] = useState({});
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [portfolioSummary, setPortfolioSummary] = useState({
         totalInvestment: 0,
         currentValue: 0,
         totalProfitLoss: 0,
         todayProfitLoss: 0
     });
+    
+    // Use refs to track the latest request
+    const currentRequestId = useRef(0);
+    const isMounted = useRef(true);
 
-    const fetchHoldings = async () => {
-        try {
-            setLoading(true);
-            const response = await fetch('http://localhost:8080/api/holdings', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to fetch holdings');
-            }
-            
-            const data = await response.json();
-            const filteredHoldings = data.filter(h => h.quantity > 0);
-            setHoldings(filteredHoldings);
-            
-            // Fetch current prices for all holdings
-            await Promise.all(filteredHoldings.map(holding => fetchStockDetails(holding.stockSymbol)));
-            
-        } catch (error) {
-            console.error('Error fetching holdings:', error);
-            setHoldings([]);
-        } finally {
-            setLoading(false);
+    useEffect(() => {
+        return () => {
+            isMounted.current = false;
+        };
+    }, []);
+
+    const handleShare = () => {
+        if (user) {
+            const shareableLink = `${window.location.origin}/portfolio/shared/${user.id}`;
+            navigator.clipboard.writeText(shareableLink);
+            setSnackbarOpen(true);
         }
     };
 
-    const fetchStockDetails = async (symbol) => {
+    const handleCloseSnackbar = (event, reason) => {
+        if (reason === 'clickaway') {
+            return;
+        }
+        setSnackbarOpen(false);
+    };
+
+    const fetchHoldings = async () => {
+        const requestId = ++currentRequestId.current;
+        
         try {
-            const response = await fetch(`http://localhost:8080/api/stocks/${symbol}/quote`);
-            if (response.ok) {
-                const data = await response.json();
-                setStockDetails(prev => ({
-                    ...prev,
-                    [symbol]: data
-                }));
+            setLoading(true);
+            
+            // Fetch holdings first
+            const holdingsResponse = await api.get('/holdings');
+            
+            // Check if this is still the latest request
+            if (!isMounted.current || requestId !== currentRequestId.current) {
+                return;
             }
+            
+            const holdingsData = holdingsResponse.data;
+            setHoldings(holdingsData);
+            
+            // Fetch all quotes in parallel
+            const quotePromises = holdingsData.map(holding => 
+                api.get(`/stocks/${holding.stockSymbol}/quote`)
+                    .then(response => ({ 
+                        symbol: holding.stockSymbol, 
+                        data: response.data 
+                    }))
+                    .catch(error => {
+                        console.error(`Error fetching quote for ${holding.stockSymbol}:`, error);
+                        return { 
+                            symbol: holding.stockSymbol, 
+                            data: null 
+                        };
+                    })
+            );
+            
+            const quoteResults = await Promise.all(quotePromises);
+            
+            // Check again if this is still the latest request
+            if (!isMounted.current || requestId !== currentRequestId.current) {
+                return;
+            }
+            
+            // Convert array of results to object
+            const quotes = quoteResults.reduce((acc, { symbol, data }) => {
+                if (data) {
+                    acc[symbol] = data;
+                }
+                return acc;
+            }, {});
+            
+            setStockDetails(quotes);
         } catch (error) {
-            console.error(`Error fetching stock details for ${symbol}:`, error);
+            console.error('Error fetching holdings:', error);
+            if (isMounted.current && requestId === currentRequestId.current) {
+                setHoldings([]);
+                setStockDetails({});
+            }
+        } finally {
+            if (isMounted.current && requestId === currentRequestId.current) {
+                setLoading(false);
+            }
         }
     };
 
     useEffect(() => {
         fetchHoldings();
-        const interval = setInterval(fetchHoldings, 30000);
-        return () => clearInterval(interval);
+        const interval = setInterval(fetchHoldings, 30000); // Refresh every 30 seconds
+        
+        return () => {
+            clearInterval(interval);
+            currentRequestId.current++; // Cancel any ongoing requests
+        };
     }, []);
 
     useEffect(() => {
@@ -107,7 +162,7 @@ const HoldingsList = () => {
         return isNaN(num) ? '0.00%' : `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`;
     };
 
-    if (loading) {
+    if (loading && !holdings.length) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
                 <CircularProgress />
@@ -127,6 +182,17 @@ const HoldingsList = () => {
 
     return (
         <Box>
+            {/* Share Button */}
+            <Box display="flex" justifyContent="flex-end" mb={2}>
+                <Button
+                    variant="outlined"
+                    startIcon={<ShareIcon />}
+                    onClick={handleShare}
+                >
+                    Share Portfolio
+                </Button>
+            </Box>
+
             {/* Portfolio Summary Cards */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6} md={3}>
@@ -213,6 +279,7 @@ const HoldingsList = () => {
                             const currentValue = quantity * currentPrice;
                             const investmentValue = quantity * averagePrice;
                             const profitLoss = currentValue - investmentValue;
+                            const profitLossPercent = (profitLoss / investmentValue) * 100;
                             const percentChange = parseFloat(stockDetails[holding.stockSymbol]?.percent_change) || 0;
 
                             return (
@@ -242,6 +309,8 @@ const HoldingsList = () => {
                                     <TableCell align="right">
                                         <Typography color={profitLoss >= 0 ? "success.main" : "error.main"}>
                                             {formatCurrency(profitLoss)}
+                                            <br />
+                                            {formatPercentage(profitLossPercent)}
                                         </Typography>
                                     </TableCell>
                                     <TableCell align="right">
@@ -255,6 +324,23 @@ const HoldingsList = () => {
                     </TableBody>
                 </Table>
             </TableContainer>
+
+            {/* Snackbar for copy confirmation */}
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={3000}
+                onClose={handleCloseSnackbar}
+                message="Portfolio link copied to clipboard"
+                action={
+                    <IconButton
+                        size="small"
+                        color="inherit"
+                        onClick={handleCloseSnackbar}
+                    >
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                }
+            />
         </Box>
     );
 };
