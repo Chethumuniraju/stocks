@@ -60,13 +60,18 @@ const HoldingsList = () => {
             
             // Fetch holdings first
             const holdingsResponse = await api.get('/holdings');
+            console.log(holdingsResponse);
+            console.log("Fetching everything fine");
             
             // Check if this is still the latest request
             if (!isMounted.current || requestId !== currentRequestId.current) {
+                console.log("Request was outdated or unmounted, stopping execution.");
                 return;
             }
             
             const holdingsData = holdingsResponse.data;
+            console.log("Here");
+           
             setHoldings(holdingsData);
             
             // Fetch all quotes in parallel
@@ -113,17 +118,20 @@ const HoldingsList = () => {
             }
         }
     };
-
+    
     useEffect(() => {
+        isMounted.current = true;
         fetchHoldings();
+        
         const interval = setInterval(fetchHoldings, 30000); // Refresh every 30 seconds
         
         return () => {
+            isMounted.current = false;
             clearInterval(interval);
             currentRequestId.current++; // Cancel any ongoing requests
         };
     }, []);
-
+    
     useEffect(() => {
         if (holdings.length > 0 && Object.keys(stockDetails).length > 0) {
             const summary = holdings.reduce((acc, holding) => {
@@ -134,7 +142,7 @@ const HoldingsList = () => {
                 const currentValue = quantity * currentPrice;
                 const profitLoss = currentValue - investmentValue;
                 const todayChange = (parseFloat(stockDetails[holding.stockSymbol]?.percent_change) || 0) * currentValue / 100;
-
+    
                 return {
                     totalInvestment: acc.totalInvestment + investmentValue,
                     currentValue: acc.currentValue + currentValue,
@@ -147,10 +155,11 @@ const HoldingsList = () => {
                 totalProfitLoss: 0,
                 todayProfitLoss: 0
             });
-
+    
             setPortfolioSummary(summary);
         }
     }, [holdings, stockDetails]);
+    
 
     const formatCurrency = (value) => {
         const num = parseFloat(value);

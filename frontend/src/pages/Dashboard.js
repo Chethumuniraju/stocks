@@ -403,6 +403,7 @@ const Dashboard = () => {
                                     <Typography variant="h6" gutterBottom>
                                         Your Portfolio
                                     </Typography>
+                                    
                                     <HoldingsList />
                                 </>
                             ) : (
